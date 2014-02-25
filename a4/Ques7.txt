@@ -1,0 +1,7 @@
+randomPatchSD is the Standard deviation for random patch selection it is used to add some randomness to the image and prevent the continual selection of a single patch which would cause to consistent a texture. If RandomPatchSD is to small there may not be enough randomness in the image and the result will not appear natural.  I RandomPatchSD is to large then you may choose bad values for a patch.
+
+patchL is half of the (size - 1) of the patches layered until the fill of the hole is complete. It is the window size through which sampling occers
+
+If patchL is to small the patch will be small and runtime will be large as more patches are needed and if your patch is to small you will match to many features in the image and may produce a patterned result.
+
+If patchL is to large it is difficult to find a patch with a good match.
