@@ -1,0 +1,105 @@
+mport numpy as np
+import math
+from scipy import signal
+import ncc
+
+scale = 0.75
+templateWidth = 15
+
+def MakePyramid(image, minsize):
+    # Initialize the list where we will store the images and place the original image in it.
+    pyramid = []
+    pyramid.append(image)
+    
+    # We will check that both the width and height dimensions are largerthan the specified minimum.
+    while(image.size[0] > minsize and image.size[1] > minsize):
+        # Get the dimensions of the image.
+        x = image.size[0]
+        y = image.size[1]
+        # Make a new copy with scaled dimensions
+        image = image.resize((int(x*scale),int(y*scale)),Image.BICUBIC)
+        # Append the new image to our list.
+        pyramid.append(image)
+
+    return pyramid
+
+def ShowPyramid(pyramid):
+
+    # The canvas on which we display our image will have the height of the first (largest) image.
+    height = pyramid[0].size[1]
+    width = 0
+    # We iterate through all the images and keep count of the combined width of the images.
+    for image in pyramid:
+        width += image.size[0]
+
+    # Create the image where we're gonna post everything
+    canvas = Image.new("L", (width, height),"white")
+    
+    # Copy each image in the pyramid onto the canvas at the appropriate offset
+    offset = 0
+    for image in pyramid:
+        canvas.paste(image,(offset,0))
+        # Increment the offset at every step.
+        offset += image.size[0]
+
+    canvas.show()
+    
+
+def FindTemplate(pyramid, template, threshhold):
+    # Maintain a variable so we know by how much to scale the coordinates back.
+    scaleBack = 1
+
+    # This markerImage will be the image where we draw the rectangles of matches we find.
+    markerImage = pyramid[0]
+    # Convert it to RGB so we can add coloured rectangles.
+    markerImage = markerImage.convert('RGB')
+
+    # Loop over every image in the pyramid to find matches.
+    for image in pyramid:
+        # Get the normalized cross correlation of the template with the image.
+        crossXC = ncc.normxcorr2D(image, template)
+
+        # We loop through this 2D returned array to check for values larger than our threshold.
+        for y in range(len(crossXC)):
+            for x in range(len(crossXC[y])):
+                if crossXC[y][x] > threshhold:
+
+                    # This code handles the drawing of triangles. 
+                    # First we find four values for our coordinates, appropriately scaled to fit on the markedImage.
+                    draw = ImageDraw.Draw(markerImage)
+                    x1 = x*scaleBack + template.size[0]
+                    x2 = x*scaleBack - template.size[0]
+                    y1 = y*scaleBack - template.size[1]
+                    y2 = y*scaleBack + template.size[1]
+                    
+                    # Then we use them to draw a green rectangle around the point.
+                    draw.line((x1,y1,x2,y1),fill="green",width=2)
+                    draw.line((x1,y2,x2,y2),fill="green",width=2)
+                    draw.line((x1,y1,x1,y2),fill="green",width=2)
+                    draw.line((x2,y1,x2,y2),fill="green",width=2)
+                    
+                    del draw
+        # Our scaleback is determined by the inverse of 0.75, our original scale value. 
+        # (0.75)^(-1) = 1.33333333
+        scaleBack *= 1.33333333
+
+    return markerImage
+
+
+im = Image.open("/home/i/i7f7/cs425/a3/faces/profile.jpg")
+im = im.convert('L')
+
+# Build our pyramid and display it
+pyramid = MakePyramid(im,15)
+
+#Get our template and resize it based on the templateWidth variable defined at the beginning.
+template = Image.open("faces/template2.jpg");
+templateHeight = template.size[1]*templateWidth/template.size[0]
+template = template.resize((int(templateWidth),int(templateHeight)),Image.BICUBIC)
+
+# Find the marked image and display it.
+# 0.5175 Was the optimum threshold found. See attached pages for details.
+th = 0.55
+finalImage = FindTemplate(pyramid,template,th)
+finalImage.show()
+
